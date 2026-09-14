@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 env:
-  SOLUTION_FILE_PATH: .
   BUILD_CONFIGURATION: Release
 
 permissions:
@@ -16,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-2025
 
     steps:
     - name: Checkout
@@ -25,41 +24,25 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
+    - name: Show MSBuild version
+      run: msbuild -version
+
     - name: Restore NuGet packages
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
-      run: nuget restore ${{ env.SOLUTION_FILE_PATH }}
+      run: nuget restore potatoInjector.sln
 
-    - name: Build
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
-      run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x64 /p:PlatformToolset=v143 ${{ env.SOLUTION_FILE_PATH }}
+    - name: Build x64 Release
+      run: |
+        msbuild potatoInjector.sln /m /t:Rebuild /p:Configuration=Release /p:Platform=x64
 
-    - name: Show build outputs
+    - name: Show build files
       shell: powershell
       run: |
-        Write-Host "EXE files:"
-        Get-ChildItem -Path . -Recurse -Filter *.exe |
+        Get-ChildItem -Path . -Recurse -Include *.exe,*.dll |
           Select-Object FullName, Length
 
-        Write-Host "DLL files:"
-        Get-ChildItem -Path . -Recurse -Filter *.dll |
-          Select-Object FullName, Length
-
-    - name: Collect build files
-      shell: powershell
-      run: |
-        New-Item -ItemType Directory -Force -Path artifact
-
-        Get-ChildItem -Path . -Recurse -Filter *.exe |
-          Where-Object { $_.FullName -notmatch '\\artifact\\' } |
-          Copy-Item -Destination artifact
-
-        Get-ChildItem -Path . -Recurse -Filter *.dll |
-          Where-Object { $_.FullName -notmatch '\\artifact\\' } |
-          Copy-Item -Destination artifact
-
-    - name: Upload build artifact
+    - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
-        name: Potato-Injector-Release-x64
-        path: artifact/*
+        name: Potato-Injector-x64-Release
+        path: x64/Release/potatoInjector.exe
         if-no-files-found: error
